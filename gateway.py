@@ -5,11 +5,13 @@ from libs.detect.yolo_grpc_client import YoloGrpcClient
 import numpy as np
 import requests
 import json
-
+from subprocess import Popen
 from util import dataio
-
+import time
 
 face = Blueprint('face', __name__)
+Popen(['python3', 'shell.py','server_detect'])
+time.sleep(8)
 detector = YoloGrpcClient('localhost', 50100)
 extractor = ArcFace('libs/extract/arcface-r100.engine')
 
