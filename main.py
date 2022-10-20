@@ -22,12 +22,24 @@ if __name__ == '__main__':
     is_runing = True
     data_task_list = {'cam01':data_task1, 'cam02':data_task2}
     instrusion_task_list = {'cam01':instrusion_task1, 'cam02':instrusion_task2}
+    num_frame_list = {'cam01':0, 'cam02':0}
+    out_fps = 10
+    sleep_time = 1 / out_fps
     endpoint_api = 'http://192.168.1.249:8501/api/user/pattern'
+    
+    start_time = time.time()    
     # start_time 
     while(is_runing):
         for camid in list_cam:
             data_task = data_task_list[camid]
             ret, frame = data_task.read_frame()
+            start = time.time()
+            num_frame_list[camid] +=1
+            num_frame = num_frame_list[camid]
+            fps = round(num_frame / (time.time() - start_time),2)
+            print(fps, num_frame, camid)
+            if fps < out_fps:
+                continue
             instrusion_task = instrusion_task_list[camid]
             boxs, scores, _ = detector.predict(frame)
             for box in boxs:
@@ -39,4 +51,6 @@ if __name__ == '__main__':
                     data = {"image":image}
                     res = requests.put(endpoint_api, json=data)
                     res = res.json()
-                    print(res)
+                    # print(res)
+            time.sleep(max(0, sleep_time - time.time() + start))
+ 
