@@ -1,56 +1,64 @@
-import cv2
-import numpy as np
-from libs.task.read_data import DataTask
-from libs.task.check_area import InstrusionTask
-import csv
-from subprocess import Popen
 import time
-from libs.detect.yolo_grpc_client import YoloGrpcClient
-import requests
-from util import dataio
-import json
+import psutil
+from client_license import verify, FLOATING_INTERVAL
+from subprocess import Popen, PIPE
 
-if __name__ == '__main__':
-
-    detector = YoloGrpcClient('localhost', 50100)
-    list_cam = ['cam01', 'cam02']
-    data_task1 = DataTask('cam01')
-    data_task2 = DataTask('cam02')
-
-    instrusion_task1 = InstrusionTask('cam01')
-    instrusion_task2 = InstrusionTask('cam02')
-    is_runing = True
-    data_task_list = {'cam01':data_task1, 'cam02':data_task2}
-    instrusion_task_list = {'cam01':instrusion_task1, 'cam02':instrusion_task2}
-    num_frame_list = {'cam01':0, 'cam02':0}
-    out_fps = 10
-    sleep_time = 1 / out_fps
-    endpoint_api = 'http://192.168.1.249:8501/api/user/pattern'
+class MainProgram():
+    def __init__(self) -> None:
+        self.encoding = "utf-8"
+        self.proc_list = {}
     
-    start_time = time.time()    
-    # start_time 
-    while(is_runing):
-        for camid in list_cam:
-            data_task = data_task_list[camid]
-            ret, frame = data_task.read_frame()
-            start = time.time()
-            num_frame_list[camid] +=1
-            num_frame = num_frame_list[camid]
-            fps = round(num_frame / (time.time() - start_time),2)
-            print(fps, num_frame, camid)
-            if fps < out_fps:
-                continue
-            instrusion_task = instrusion_task_list[camid]
-            boxs, scores, _ = detector.predict(frame)
-            for box in boxs:
-                instrusions = instrusion_task.check_insutrion(box)
-                if sum(instrusions) > 0:
-                    xmin, ymin, xmax, ymax = box
-                    image = frame[ymin:ymax, xmin:xmax]
-                    image = dataio.convert_numpy_array_to_bytes(image)
-                    data = {"image":image}
-                    res = requests.put(endpoint_api, json=data)
-                    res = res.json()
-                    # print(res)
-            time.sleep(max(0, sleep_time - time.time() + start))
- 
+    def __run_all(self):
+        self.__run_detect()
+        time.sleep(2)
+        self.__run_gateway()
+        time.sleep(2)
+        self.__run_ai_main()
+    
+    def __stop(self):
+        try:
+            for _, process in self.proc_list.items():
+                process.kill()
+                process.wait()
+        except: pass
+    
+    def __run_gateway(self):
+        for p in psutil.process_iter():
+            if p.cmdline() == ["python3", "gateway.py"]:
+                return
+        gateway = Popen(["python3", "gateway.py"], stdin=PIPE, encoding=self.encoding)
+        self.proc_list[gateway.pid] = gateway
+    def __run_detect(self):
+        for p in psutil.process_iter():
+            if p.cmdline() == ["python3", "shell.py","server_detect"]:
+                return
+        detect_server = Popen(["python3", "shell.py","server_detect"], stdin=PIPE, encoding=self.encoding)
+        self.proc_list[detect_server.pid] = detect_server
+    def __run_ai_main(self):
+        for p in psutil.process_iter():
+            if p.cmdline() == ["python3", "app.py"]:
+                return
+        ai_main = Popen(["python3", "app.py"], stdin=PIPE, encoding=self.encoding)
+        self.proc_list[ai_main.pid] = ai_main
+        
+    def _start(self):
+        if verify():
+            self.__run_all()
+        else:
+            print("Not activated!")
+        
+        while(True):
+            try:
+                time.sleep(FLOATING_INTERVAL)
+                if not verify():
+                    self.__stop()
+                    continue
+                
+                self.__run_all()
+            except:
+                self.__stop()
+                break
+
+if __name__ == "__main__":
+    m = MainProgram()
+    m._start()

@@ -11,7 +11,7 @@ import time
 import os
 
 face = Blueprint('face', __name__)
-Popen(['python3', 'shell.py','server_detect'])
+
 time.sleep(2)
 detector = YoloGrpcClient('localhost', 50100)
 extractor = ArcFace('libs/extract/arcface-r100.engine')

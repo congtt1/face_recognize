@@ -1,8 +1,6 @@
 import os
 import cv2
 from configs.config import CustomConfig
-from shapely.geometry import Point
-from shapely.geometry.polygon import Polygon
 import json
 import numpy as np
 class DataTask():
