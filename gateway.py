@@ -8,10 +8,11 @@ import json
 from subprocess import Popen
 from util import dataio
 import time
+import os
 
 face = Blueprint('face', __name__)
 Popen(['python3', 'shell.py','server_detect'])
-time.sleep(8)
+time.sleep(2)
 detector = YoloGrpcClient('localhost', 50100)
 extractor = ArcFace('libs/extract/arcface-r100.engine')
 
@@ -84,24 +85,26 @@ def api_verify_pattern():
     unknown_image = dataio.convert_bytes_to_numpy_array(image)
     unknown_image = process_image(unknown_image)
     # get features face
-    face_encodings = extractor.extract(unknown_image)
+    face_encodings = extractor.extract(unknown_image)[0]
     # face_encodings = [features.tolist() for features in face_encodings if type(features) == np.ndarray]
     d = {"face_images": [
             ],
             "gate_location": np.arange(len(face_encodings)).tolist(), #fake data
             "status": [1] * len(face_encodings), #fake data
-            "encodings": face_encodings
+            "encodings": [face_encodings]
     }
     payload.append(d)
+    print(len(face_encodings))
 
     # POST request
-    url = "http://192.168.1.196:8999/api/user/pattern"
-    r = requests.put(url=url, json=payload)
+    url = "https://192.168.1.196:8999/api/user/pattern" #https
+    r = requests.put(url=url, json=payload, verify=False)
     response = make_response(jsonify(json.loads(r.text)), r.status_code)
     return response
 
 
 if __name__ == '__main__':
+
     app = Flask(__name__)
     app.register_blueprint(face, url_prefix='/api/user')
     app.run(host="0.0.0.0", port="8501", debug=True)

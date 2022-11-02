@@ -7,7 +7,8 @@ import pickle
 
 import libs.grpc.appearance_pb2 as appearance_pb2
 import libs.grpc.appearance_pb2_grpc as appearance_pb2_grpc
-
+# from libs.appearance.models.common import ModelLoader
+from configs.config import CustomConfig
 # CFG = CustomConfig.get_instance()
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
@@ -15,10 +16,14 @@ _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 class YoloDetector(object):
     def __init__(self):
         self.detector = None
+        self.CFG = CustomConfig().CFG
+        self.common = self.CFG['COMMON']['COMMON']
+        self.engine_file = self.common.get('detect_model','libs/detect/yolov5n.engine')
+        print(f'model detection face {self.engine_file}')
 
         self._load_detector()
     def _load_detector(self):
-        self.detector = YoloModule('./libs/detect/yolov5n_face.engine')
+        self.detector = YoloModule(self.engine_file)
 
     def predict(self, image):
         results = self.detector.detect([image])
@@ -56,10 +61,6 @@ class DetetorServer(appearance_pb2_grpc.AppearanceServicer):
 
 
 def serve(port):
-    # is_activated, _, _, _, _, _ = verify()
-    # if not is_activated:
-    #     print("Appearance has not been activated!")
-    #     return
 
     print("Starting Appearance server...")
     # max_worker = CFG.appearance.getint("max_worker", 10)
