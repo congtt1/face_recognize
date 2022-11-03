@@ -9,6 +9,10 @@ from subprocess import Popen
 from util import dataio
 import time
 import os
+from configs.config import CustomConfig
+CFG = CustomConfig().CFG
+camcfg = CFG['COMMON']['COMMON']
+local_host_ip = camcfg.get('local_host_ip','192.168.1.196')
 
 face = Blueprint('face', __name__)
 
@@ -94,10 +98,9 @@ def api_verify_pattern():
             "encodings": [face_encodings]
     }
     payload.append(d)
-    print(len(face_encodings))
 
     # POST request
-    url = "https://192.168.1.196:8999/api/user/pattern" #https
+    url = f"https://{local_host_ip}:8999/api/user/pattern" #https
     r = requests.put(url=url, json=payload, verify=False)
     response = make_response(jsonify(json.loads(r.text)), r.status_code)
     return response
