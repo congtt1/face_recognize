@@ -39,27 +39,24 @@ if __name__ == '__main__':
     encoding = "utf-8"
     number_frame = 0
     while(is_runing):
-        # for camid in list_cam:
-        with open(f'{camid}.csv','a') as write:
-            writer = csv.writer(write)
-            ret, frame = data_task.read_frame()
-            start = time.time()
-            num_frame +=1
-            fps = round(num_frame / (time.time() - start_time),2)
-            # print(fps, num_frame, camid, end='\r')
-            if fps < out_fps:
-                continue
-            boxs, scores, _ = detector.predict(frame)
-            # print(boxs)
-            for box in boxs:
-                instrusions = instrusion_task.check_insutrion(box)
-                if sum(instrusions) > 0:
-                    xmin, ymin, xmax, ymax = box
-                    image = frame[ymin:ymax, xmin:xmax]
-                    image = dataio.convert_numpy_array_to_bytes(image)
-                    data = {"image":image}
-                    res = requests.put(endpoint_api, json=data)
-                    res = res.json()['responses']
+        ret, frame = data_task.read_frame()
+        start = time.time()
+        num_frame +=1
+        fps = round(num_frame / (time.time() - start_time),2)
+        if fps < out_fps:
+            continue
+        boxs, scores, _ = detector.predict(frame)
+        for box in boxs:
+            instrusions = instrusion_task.check_insutrion(box)
+            if sum(instrusions) > 0:
+                xmin, ymin, xmax, ymax = box
+                image = frame[ymin:ymax, xmin:xmax]
+                image = dataio.convert_numpy_array_to_bytes(image)
+                data = {"image":image}
+                res = requests.put(endpoint_api, json=data)
+                res = res.json()['responses']
+                print(res)
+                if len(res) > 0:
                     res = res[0][0][0]
                     score_cosine = res['score']
                     mail = res['zcfg_requester_address_email']
@@ -71,5 +68,4 @@ if __name__ == '__main__':
                                 if j:
                                     door_id = str(i)
                         Popen(["python3", "open_door.py", "--door_id", door_id], stdin=PIPE, encoding=encoding)
-                    writer.writerow([num_frame, score_cosine, mail, xmin, ymin, xmax,ymax])
-            time.sleep(max(0, sleep_time - time.time() + start))
+        time.sleep(max(0, sleep_time - time.time() + start))

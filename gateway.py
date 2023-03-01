@@ -9,14 +9,14 @@ from subprocess import Popen
 from util import dataio
 import time
 import os
+import cv2
 from configs.config import CustomConfig
 CFG = CustomConfig().CFG
 camcfg = CFG['COMMON']['COMMON']
 local_host_ip = camcfg.get('local_host_ip','192.168.1.196')
-
+max_size = camcfg.getint('max_size',500)
 face = Blueprint('face', __name__)
 
-time.sleep(2)
 detector = YoloGrpcClient('localhost', 50100)
 extractor = ArcFace('libs/extract/arcface-r100.engine')
 
@@ -33,15 +33,28 @@ def api_register_pattern():
     for image in images:
         # convert bytes to array
         image = dataio.convert_bytes_to_numpy_array(image)
+        org_h, org_w = image.shape[:2]
+        if org_h >= org_w:
+            new_h = max_size
+            new_w = int(org_w * new_h / org_h)
+        else:
+            new_w = max_size
+            new_h = int(org_h * new_w/ org_w)
+        image = cv2.resize(image, (new_w, new_h))
         # get face location and face encoding
         # face_locations = detector.detect([image])[0]
         face_locations, probs, classes = detector.predict(image)
         # validate
-        if len(face_locations) != 1:
-            continue
-        res = face_locations[0]
-        left, top, right, bottom = res
-        face = image[top:bottom, left:right]
+        if len(face_locations) > 0:
+            res = face_locations[0]
+            left, top, right, bottom = res
+            face = image[top:bottom, left:right]
+        else:
+            left = 0
+            top = 0
+            right = org_w
+            bottom = org_h
+            face = image.copy()
         face = process_image(face)
         face_encoding = extractor.extract(face)[0]
 
